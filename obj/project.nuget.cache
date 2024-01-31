@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "pWoOblYVPC9jUbnYxcdCtfHKmoAbCPpLq3cjugYlbscZ4MjfKW4LuMagE5QoOHu9tXw3d9yP6CJHFNYh62Cqdw==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Alperen\\source\\repos\\LibraryApp\\LibraryApp\\LibraryApp.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Alperen\\.nuget\\packages\\consoletables\\2.6.1\\consoletables.2.6.1.nupkg.sha512"
+  ],
+  "logs": []
+}
