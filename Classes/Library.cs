@@ -1,151 +1,130 @@
 ﻿using ConsoleTables;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace LibraryApp.Classes
 {
+    
     internal class Library
     {
-        public Library() 
+        private JsonHandler<Book> bookJsonHandler;
+        private JsonHandler<BorrowingTransaction> borrowingTransactionJsonHandler;
+        public Library()
         {
-            
-            if (System.IO.File.Exists("books.json") == false)
-                System.IO.File.Create("books.json").Close();
-            deserialized = new();
-            ReadJsonFile();
-
+            bookJsonHandler = new JsonHandler<Book>("books.json");
+            borrowingTransactionJsonHandler = new JsonHandler<BorrowingTransaction>("orders.json");
         }
-        List<Book> deserialized;
-        public List<Book> DeserializedBooks { get { return deserialized; } }
+
+        public List<Book> DeserializedBooks { get { return bookJsonHandler.Data; } }
+
         public void AddBook(Book book)
         {
-            AddToJsonFile(book);
-           
+            bookJsonHandler.AddItem(book);
         }
-        
-        public void DisplayBooks(List<Book> bookList)
+
+        public void DisplayBooks()
         {
-            
-            var table = new ConsoleTable("ISBSN", "Title", "Author", "NumberOfCoppies",
-                "barrowedCoppies");
-            if (bookList == null)
+            bookJsonHandler.ReadJsonFile();
+
+            var table = new ConsoleTable("ISBSN", "Title", "Author", "NumberOfCoppies", "barrowedCoppies");
+
+            if (bookJsonHandler.Data == null)
                 return;
-            foreach (var item in bookList)
+
+            foreach (var item in bookJsonHandler.Data)
             {
-
-
-                table.AddRow(item.ISBSN, item.Title, item.Author, item.NumberOfCopies,
-                   item.BarrowedCopies);
-                
-
+                if (item is Book book)
+                    table.AddRow(book.ISBSN, book.Title, book.Author, book.NumberOfCopies, book.BarrowedCopies);
             }
+
             table.Write();
             Console.WriteLine();
-
         }
-
-        public void ReceiveBook(int ISBN, int numberOfBooks)
+        public void DisplayBooks(List<Book> book)
         {
-            
-            ReadJsonFile();
-            Book barrowedBook = deserialized.Find(x => x.ISBSN == ISBN);
-            if (barrowedBook.BarrowedCopies < numberOfBooks)
-            {
-                Console.WriteLine("Error : The number of books returned cannot be more than the number of books lent !\n\n");
+            bookJsonHandler.ReadJsonFile();
+
+            var table = new ConsoleTable("ISBSN", "Title", "Author", "NumberOfCoppies", "barrowedCoppies");
+
+            if (bookJsonHandler.Data == null)
                 return;
+
+            foreach (var item in book)
+            {
+                   table.AddRow(item.ISBSN, item.Title, item.Author, item.NumberOfCopies, item.BarrowedCopies);
             }
-                
-            barrowedBook.NumberOfCopies += numberOfBooks;
-            barrowedBook.BarrowedCopies -= numberOfBooks;
-            AddToJsonFile();
-            
+
+            table.Write();
+            Console.WriteLine();
         }
 
-
-
-        public void LendBook(int ISBN, int numberOfBooks)
+        public void ReceiveBook(ulong ISBN, int orderID)
         {
-            ReadJsonFile();
-            Book givenBook = deserialized.Find(x => x.ISBSN == ISBN);
+            bookJsonHandler.ReadJsonFile();
+            Book borrowedBook = bookJsonHandler.Data.Find(x => x.ISBSN == ISBN);
+            BorrowingTransaction b= borrowingTransactionJsonHandler.Data.Find(x => x.OrderID == orderID);
+            b.Status = "Received";
+            borrowingTransactionJsonHandler.SaveChanges();
+            borrowedBook.NumberOfCopies ++;
+            borrowedBook.BarrowedCopies --;
+            bookJsonHandler.SaveChanges();
+        }
+
+        public void LendBook(ulong ISBN, int numberOfBooks, BorrowingTransaction borrowingTransaction)
+        {
+            bookJsonHandler.ReadJsonFile();
+            Book givenBook = bookJsonHandler.Data.Find(x => x.ISBSN == ISBN);
+            borrowingTransactionJsonHandler.AddItem(borrowingTransaction);
             if (givenBook.NumberOfCopies < numberOfBooks)
             {
-                Console.WriteLine("Error : You do not lend more books than the number of copies ! \n\n");
+                Console.WriteLine("Error: You cannot lend more books than the number of copies!\n\n");
                 return;
             }
 
             givenBook.NumberOfCopies -= numberOfBooks;
             givenBook.BarrowedCopies += numberOfBooks;
-            AddToJsonFile();
-
+            bookJsonHandler.SaveChanges();
         }
+
         public List<Book>? FindBooksByAuthor(string Author)
         {
-            var table = new ConsoleTable("ISBSN", "Title", "Author", "NumberOfCoppies",
-                "barrowedCoppies");
-            if (deserialized == null)
-                return null;
-            ReadJsonFile();
-            List<Book> books = deserialized.Where(x => x.Author == Author).ToList();
+            bookJsonHandler.ReadJsonFile();
+            List<Book> books = bookJsonHandler.Data?.Where(x => x.Author == Author).ToList();
             return books;
         }
 
         public List<Book> FindBooksByTitle(string Title)
         {
-            var table = new ConsoleTable("ISBSN", "Title", "Author", "NumberOfCoppies",
-                "barrowedCoppies");
-            if (deserialized == null)
-                return null;
-            ReadJsonFile();
-            List<Book> books = deserialized.Where(x => x.Title == Title).ToList();
+            bookJsonHandler.ReadJsonFile();
+            List<Book> books = bookJsonHandler.Data?.Where(x => x.Title == Title).ToList();
             return books;
         }
 
-        private void ReadJsonFile()
+        public List<BorrowingTransaction> FindOverdueBooks()
         {
-            try
+            borrowingTransactionJsonHandler.ReadJsonFile();
+
+            if (borrowingTransactionJsonHandler.Data == null)
+                return null;
+
+            foreach (var item in borrowingTransactionJsonHandler.Data)
             {
-                if (deserialized == null)
-                    return;
-                string json = System.IO.File.ReadAllText("books.json");
-                deserialized = JsonSerializer.Deserialize<List<Book>>(json);
-                
 
+               
+                if (Convert.ToDateTime(item.DueDate) <= DateTime.Now)
+                {
+                    Console.WriteLine($"\nORDER ID :{item.OrderID} \t BOOK NAME : {item.BookName} \t NAME OF BORROWER : {item.NameOfBorrower} .WARNING : DELAYED TIME !\n\a");
+
+                }
+                else
+                {
+
+                    Console.WriteLine("There are no books past due date");
+                }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error: {ex.Message}");
-            }
+
+            return null;
         }
-
-        private void AddToJsonFile(Book book)
-        {
-            ReadJsonFile();
-            deserialized.Add(book); 
-            string updatedJson = JsonSerializer.Serialize<List<Book>>(deserialized);
-            System.IO.File.WriteAllText("books.json", updatedJson);
-            
-
-
-        }
-        private void AddToJsonFile()
-        {
-
-            string updatedJson = JsonSerializer.Serialize<List<Book>>(deserialized);
-            System.IO.File.WriteAllText("books.json", updatedJson);
-
-
-        }
-
-      
-
     }
-
-
-
-    }
-
+}

@@ -8,7 +8,7 @@ namespace LibraryApp.Classes
 {
     internal class Book
     {
-        public int ISBSN { get; set; }
+        public ulong ISBSN { get; set; }
         public string Title { get; set; }
         public string Author { get; set; }
         public int NumberOfCopies { get; set; }
